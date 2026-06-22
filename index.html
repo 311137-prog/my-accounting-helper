@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🪙 跨國智慧記帳助手</title>
+    <style>
+        /* 前端網頁特效與現代感 UI 設計 */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .card { background: white; padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 100%; max-width: 450px; transform: translateY(20px); opacity: 0; animation: slideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideIn { to { transform: translateY(0); opacity: 1; } }
+        h2 { text-align: center; color: #333; margin-bottom: 25px; font-size: 24px; }
+        .form-group { margin-bottom: 18px; position: relative; }
+        label { display: block; margin-bottom: 8px; color: #555; font-weight: 600; font-size: 14px; }
+        input, select { width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 15px; transition: all 0.3s ease; outline: none; }
+        input:focus, select:focus { border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2); }
+        input[readonly] { background-color: #edf2f7; color: #4a5568; cursor: not-allowed; border-style: dashed; }
+        button { width: 100%; padding: 14px; background: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s ease; margin-top: 10px; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.2); }
+        button:hover { background: #5a67d8; transform: translateY(-1px); box-shadow: 0 7px 14px rgba(102, 126, 234, 0.3); }
+        button:active { transform: translateY(1px); }
+        .hint { color: #718096; font-size: 12px; font-weight: normal; margin-left: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>🪙 跨國智慧記帳助手</h2>
+    <div class="form-group">
+        <label>消費項目</label>
+        <input type="text" id="item" placeholder="例如：Netflix 訂閱、日本藥妝">
+    </div>
+    <div class="form-group">
+        <label>消費分類</label>
+        <select id="category">
+            <option value="娛樂影音">娛樂影音</option>
+            <option value="餐飲飲食">餐飲飲食</option>
+            <option value="海外購物">海外購物</option>
+            <option value="旅遊住宿">旅遊住宿</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>選擇幣別</label>
+        <select id="currency" onchange="convertCurrency()">
+            <option value="USD">USD (美元)</option>
+            <option value="JPY">JPY (日圓)</option>
+            <option value="KRW">KRW (韓元)</option>
+            <option value="EUR">EUR (歐元)</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>外幣金額</label>
+        <input type="number" id="amount" placeholder="輸入外幣金額" oninput="convertCurrency()">
+    </div>
+    <div class="form-group">
+        <label>折合台幣 (TWD) <span class="hint">(✨ API 自動填入)</span></label>
+        <input type="number" id="twdAmount" readonly placeholder="自動換算中...">
+    </div>
+    <button onclick="submitToGas()">🚀 送出帳務備份</button>
+</div>
+
+<script>
+    // 1. 呼叫第三方匯率 API，自動計算並填入資料
+    async function convertCurrency() {
+        const currency = document.getElementById('currency').value;
+        const amount = document.getElementById('amount').value;
+        const twdAmountInput = document.getElementById('twdAmount');
+        
+        if (!amount || amount <= 0) {
+            twdAmountInput.value = '';
+            return;
+        }
+
+        try {
+            // 呼叫免費 Frankfurter API 取得最新匯率
+            const response = await fetch(`https://api.frankfurter.app/latest?from=${currency}&to=TWD`);
+            const data = await response.json();
+            const rate = data.rates.TWD;
+            
+            // 自動填入換算後的台幣金額 (無條件四捨五入到整數)
+            twdAmountInput.value = Math.round(amount * rate);
+        } catch (error) {
+            console.error("匯率 API 呼召失敗，請稍後再試", error);
+        }
+    }
+
+    // 2. 將資料透過 GAS 傳送到 Google 試算表
+    async function submitToGas() {
+        // ⚠️ 備註：請在這裡換上你部署完 GAS 後得到的「網頁應用程式 URL」
+        const gasUrl = "請在此處貼上你的GAS部署網址"; 
+        
+        const data = {
+            item: document.getElementById('item').value,
+            category: document.getElementById('category').value,
+            currency: document.getElementById('currency').value,
+            amount: document.getElementById('amount').value,
+            twdAmount: document.getElementById('twdAmount').value
+        };
+
+        if(!data.item || !data.amount) {
+            alert("❌ 請填寫消費項目與金額！");
+            return;
+        }
+
+        if(gasUrl.includes("請在此處貼上")) {
+            alert("⚠️ 提示：網頁前端已就緒！但請先將程式碼中的 gasUrl 改為你自己的 Google Apps Script 網址，才能成功連動試算表喔！");
+            return;
+        }
+
+        try {
+            const response = await fetch(gasUrl, {
+                method: "POST",
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            if (result.result === "success") {
+                alert("🎉 帳務已成功同步至 Google 試算表！");
+                // 清空輸入框欄位
+                document.getElementById('item').value = '';
+                document.getElementById('amount').value = '';
+                document.getElementById('twdAmount').value = '';
+            }
+        } catch (error) {
+            alert("❌ 儲存失敗，請檢查您的 GAS 設定或 CORS 權限");
+            console.error(error);
+        }
+    }
+</script>
+</body>
+</html>
